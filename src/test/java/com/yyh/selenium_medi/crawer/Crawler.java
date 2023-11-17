@@ -23,43 +23,48 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 @Slf4j
 @SpringBootTest
-public class Crawler {
+class Crawler {
 
     @Autowired
     private InputEntityService inputEntityService;
     @Autowired
     private OutputEntityService outputEntityService;
 
-
     private WebDriver driver;
 
+    /**
+     * Constructor
+     * 初始化driver
+     */
     public Crawler() {
-
-        if (driver == null) {
-            System.setProperty("webdriver.chrome.driver", "D:\\yyhfile\\IDM Download\\files\\chromedriver-win64\\chromedriver-win64\\chromedriver.exe");
-            ChromeOptions options = new ChromeOptions();
-            options.addArguments("--remote-allow-origins=*");
-            //设置用户代理为一个pc端的浏览器，您可以根据您的需求修改这个值
-            options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0");
-            options.addArguments("accept=text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7");
-            options.addArguments("accept-encoding=gzip, deflate, br");
-            options.addArguments("accept-language=zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6");
-            options.addArguments("sec-fetch-dest=document");
-            options.addArguments("sec-fetch-mode=navigate");
-            options.addArguments("sec-fetch-site=none");
-            options.addArguments("sec-fetch-user=?1");
-            options.addArguments("upgrade-insecure-requests=1");
-            options.addArguments("sec-ch-ua-mobile=?0");
-            options.addArguments("sec-ch-ua-platform=\"Windows\"");
-            // 创建一个WebDriver对象，用来控制chrome浏览器
-            driver = new ChromeDriver(options);
-        }
+        System.setProperty("webdriver.chrome.driver", "D:\\yyhfile\\IDM Download\\files\\chromedriver-win64\\chromedriver-win64\\chromedriver.exe");
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--remote-allow-origins=*");
+        //设置用户代理为一个pc端的浏览器，您可以根据您的需求修改这个值
+        options.addArguments("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0");
+        options.addArguments("accept=text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7");
+        options.addArguments("accept-encoding=gzip, deflate, br");
+        options.addArguments("accept-language=zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6");
+        options.addArguments("sec-fetch-dest=document");
+        options.addArguments("sec-fetch-mode=navigate");
+        options.addArguments("sec-fetch-site=none");
+        options.addArguments("sec-fetch-user=?1");
+        options.addArguments("upgrade-insecure-requests=1");
+        options.addArguments("sec-ch-ua-mobile=?0");
+        options.addArguments("sec-ch-ua-platform=\"Windows\"");
+        // 创建一个WebDriver对象，用来控制chrome浏览器
+        driver = new ChromeDriver(options);
     }
 
     public WebDriver getChromeDriver() {
         return driver;
     }
 
+    /**
+     * 使用cookie打开页面
+     *
+     * @param driver
+     */
     public void openSearchPage(WebDriver driver) {
         driver.get("https://www.yixieyun.com/ZbDataAllFitPrice/index.html?CodeName=%E4%BB%B7%E6%A0%BC%E6%9F%A5%E8%AF%A2");
         driver.manage().deleteAllCookies();
@@ -72,11 +77,11 @@ public class Crawler {
         return inputEntityService.list();
     }
 
-    public List<OutputEntity> getFromWeb(WebDriver driver,String searchHandler ,InputEntity inputEntity) throws InterruptedException {
+    public List<OutputEntity> getFromWeb(WebDriver driver, String searchHandler, InputEntity inputEntity, boolean useModel, int limit) throws InterruptedException {
         driver.manage().window().maximize();
 
         driver.switchTo().window(searchHandler);
-
+        //设备名
         driver.findElement(By.id("ContentPlaceHolder1_txtQuery")).sendKeys(inputEntity.getDeviceName());
         //时间
         driver.findElement(By.id("ContentPlaceHolder1_ddlStartYear")).sendKeys("2002");
@@ -86,7 +91,7 @@ public class Crawler {
         driver.findElement(By.id("ContentPlaceHolder1_txtPrciceMin")).sendKeys("0");
         driver.findElement(By.id("ContentPlaceHolder1_txtPrciceMax")).sendKeys("99999999999");
         //型号规格
-        if(inputEntity.getModel()!=null){
+        if (inputEntity.getModel() != null && useModel) {
             driver.findElement(By.id("ContentPlaceHolder1_txtspec")).sendKeys(inputEntity.getModel());
         }
 
@@ -111,7 +116,15 @@ public class Crawler {
 
         ArrayList<OutputEntity> outputCathe = new ArrayList<>();
         // 遍历每一行，获取每个单元格的文本，并添加到列表中
-        for (WebElement row : rows) {
+
+        List<WebElement> limitRows = null;
+        if (rows.size() > limit) {
+            limitRows = rows.subList(0, crawlerLimit);
+        } else {
+            limitRows = rows;
+        }
+
+        for (WebElement row : limitRows) {
             OutputEntity outputEntity = new OutputEntity();
 
             List<WebElement> tds = row.findElements(By.tagName("td"));
@@ -129,7 +142,7 @@ public class Crawler {
             try {
                 double span = Double.parseDouble(strPrice);
                 price = (int) span;
-            }catch (Exception e) {
+            } catch (Exception e) {
 
             }
             WebElement website = tds.get(11).findElement(By.tagName("span"));
@@ -138,6 +151,7 @@ public class Crawler {
             String websiteUrl = null;
 
             String windowHandle1 = null;
+
             String windowHandle2 = null;
             List<WebElement> as = website.findElements(By.tagName("a"));
             if (as.size() == 1) {
@@ -153,11 +167,12 @@ public class Crawler {
             } else if (as.size() == 2) {
                 url = as.get(1);
             }
-            if(url!=null) {
+            if (url != null) {
                 try {
                     url.click();
                     Thread.sleep(300);
                     windowHandle1 = driver.getWindowHandle();
+
                     //跳转到下一个页面
                     Set<String> windowHandles1 = driver.getWindowHandles();
                     for (String handle : windowHandles1) {
@@ -169,6 +184,7 @@ public class Crawler {
                     driver.findElement(By.id("ContentPlaceHolder1_lblZBPtitle")).click();
                     Thread.sleep(300);
                     windowHandle2 = driver.getWindowHandle();
+
                     //跳转到下一个页面
                     Set<String> windowHandles2 = driver.getWindowHandles();
                     for (String handle : windowHandles2) {
@@ -176,9 +192,6 @@ public class Crawler {
                             driver.switchTo().window(handle);
                         }
                     }
-                    //todo 时间 采购人
-
-
                     date = driver.findElement(By.id("ContentPlaceHolder1_ProDate")).getText();
                     buyer = driver.findElement(By.id("ContentPlaceHolder1_InformationTitle")).getText();
 
@@ -202,6 +215,7 @@ public class Crawler {
             outputEntity.setSourceUrl(websiteUrl);
             outputEntity.setBuyer(buyer);
             outputEntity.setDate(date);
+            outputEntity.setUsedModel(useModel);
             log.info(outputEntity.toString());
             boolean add = outputEntities.add(outputEntity);
             boolean cathe = outputCathe.add(outputEntity);
@@ -217,17 +231,37 @@ public class Crawler {
             }
 
         }
+        //写入数据
         outputEntityService.saveBatch(outputCathe);
         return outputEntities;
     }
 
+    /**
+     * 每个设备爬多少条
+     */
+    private final int crawlerLimit = 5;
+
     @Test
-    void crawler() throws InterruptedException {
+    void crawlerWithModel() throws InterruptedException {
         WebDriver chromeDriver = getChromeDriver();
         List<InputEntity> inputEntities = getInputEntities();
         for (int i = 162; i < 164; i++) {
+            //每循环一次重新打开页面，刷新输入框
             openSearchPage(chromeDriver);
-            List<OutputEntity> fromWeb = getFromWeb(chromeDriver,chromeDriver.getWindowHandle() ,inputEntities.get(i));
+            //抓取
+            List<OutputEntity> fromWeb = getFromWeb(chromeDriver, chromeDriver.getWindowHandle(), inputEntities.get(i), true, crawlerLimit);
+        }
+    }
+
+    @Test
+    void crawlerWithoutModel() throws InterruptedException {
+        WebDriver chromeDriver = getChromeDriver();
+        List<InputEntity> inputEntities = getInputEntities();
+        for (int i = 162; i < 164; i++) {
+            //每循环一次重新打开页面，刷新输入框
+            openSearchPage(chromeDriver);
+            //抓取
+            List<OutputEntity> fromWeb = getFromWeb(chromeDriver, chromeDriver.getWindowHandle(), inputEntities.get(i), false, crawlerLimit);
         }
     }
 }

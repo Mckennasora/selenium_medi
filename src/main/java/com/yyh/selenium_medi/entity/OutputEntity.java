@@ -44,5 +44,7 @@ public class OutputEntity extends Model<OutputEntity> {
     private String buyer;
 
     private String date;
+
+    private boolean isUsedModel;
 }
 
