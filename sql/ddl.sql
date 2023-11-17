@@ -24,6 +24,6 @@ create table output_entity
     source_website varchar(1024) null,
     source_url     varchar(1024) null,
     buyer          varchar(256)  null,
-    date           varchar(256)  null
+    date           varchar(256)  null,
+    is_used_model  tinyint(1)    null
 );
-
